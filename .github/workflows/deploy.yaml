@@ -1,6 +1,7 @@
 name: Sausage Store Deploy
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
