@@ -49,7 +49,8 @@ jobs:
             # Для каждого пересобранного образа 
             # устанавливаем тег latest, чтобы потом
             # на сервере и в docker-compose.yml не указывать версию образа:
-            tags: YOUR_DOCKERHUB/sausage-backend:latest
+            # tags: YOUR_DOCKERHUB/sausage-backend:latest
+            tags: ilyakubashin/sausage-backend:latest
             build-args: |
               VERSION=${{ github.sha }}
         - name: Push Frontend to DockerHub
