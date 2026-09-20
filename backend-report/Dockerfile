@@ -1,5 +1,5 @@
 # Start from the latest golang base image
-FROM golang:latest as builder
+FROM golang:1.21-alpine AS builder
 
 # Set the Current Working Directory inside the container
 WORKDIR /app
@@ -14,19 +14,21 @@ RUN go mod download
 COPY . .
 
 # Build the Go app
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/main .
 
 
 ######## Start a new stage from scratch #######
 FROM alpine:latest  
 
-WORKDIR /root/
+WORKDIR /app
 
+RUN adduser -D -u 1000 appuser
 # Copy the Pre-built binary file from the previous stage
 COPY --from=builderer /app/main .
-
+RUN chown appuser:appuser /app/main
+USER appuser
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["/app/main"] 
+CMD ["./main"] 
