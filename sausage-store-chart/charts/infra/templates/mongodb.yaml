@@ -24,11 +24,7 @@ spec:
         ports:
         - containerPort: {{ .Values.mongodb.containerPort }}
         resources:
-          requests:
-            memory: "128Mi"
-            cpu: "50m"
-          limits:
-            memory: "256Mi"
+{{ toYaml .Values.mongodb.resources | indent 10 }}
         volumeMounts:
         - name: mongodb-data
           mountPath: /data/db
