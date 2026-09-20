@@ -3,7 +3,8 @@ kind: Job
 metadata:
   name: mongodb-init-reports-user
   annotations:
-    helm.sh/hook: post-install,post-upgrade
+    # helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook: post-install
     helm.sh/hook-weight: "5"
     helm.sh/hook-delete-policy: before-hook-creation,hook-succeeded
 spec:
@@ -35,14 +36,15 @@ spec:
               echo "MongoDB is up. Creating user 'reports'..."
               mongosh --host mongodb --username root --password rootpassword --authenticationDatabase admin --eval '
                 db = db.getSiblingDB("sausage-store");
-                if (db.getUser("reports")) {
-                  db.dropUser("reports");
+                if (!db.getUser("reports")) {
+                  db.createUser({
+                    user: "reports",
+                    pwd: "reportspassword",
+                    roles: [{ role: "readWrite", db: "sausage-store" }]
+                  });
+                  print("User reports created successfully");
+                } else {
+                  print("User reports already exists, skipping");
                 }
-                db.createUser({
-                  user: "reports",
-                  pwd: "reportspassword",
-                  roles: [{ role: "readWrite", db: "sausage-store" }]
-                });
-                print("User reports created successfully");
               '
               echo "Done"
