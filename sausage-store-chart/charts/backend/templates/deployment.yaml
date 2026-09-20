@@ -16,7 +16,12 @@ spec:
   revisionHistoryLimit: {{ .Values.revisionHistoryLimit }}
   replicas: {{ .Values.replicas }}
   strategy:
-{{ toYaml .Values.strategy | indent 4 }} 
+    type: {{ .Values.strategy.type }}
+    {{- if eq .Values.strategy.type "RollingUpdate" }}
+    rollingUpdate:
+      maxSurge: {{ .Values.strategy.rollingUpdate.maxSurge }}
+      maxUnavailable: {{ .Values.strategy.rollingUpdate.maxUnavailable }}
+    {{- end }}
   selector:
     matchLabels:
       app: {{ .Release.Name }}-{{ .Chart.Name }}
@@ -29,6 +34,8 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Chart.Name }}
     spec:
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ .Values.image }}
@@ -46,8 +53,8 @@ spec:
                   key: postgres_user
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
-                configMapKeyRef:
-                  name: {{ .Release.Name }}-{{ .Chart.Name }}-conf
+                secretKeyRef:
+                  name: {{ .Release.Name }}-{{ .Chart.Name }}-secret
                   key: postgres_password
             - name: REPORT_PATH
               valueFrom:
@@ -60,27 +67,18 @@ spec:
                   name: {{ .Release.Name }}-{{ .Chart.Name }}-conf
                   key: log_path
           resources:
-{{ toYaml .Values.resources | indent 12 }} 
+{{ toYaml .Values.resources | indent 12 }}
           ports:
             - name: {{ .Chart.Name }}
               containerPort: {{ .Values.containerPort }}
           livenessProbe:
-{{ toYaml .Values.livenessProbe | indent 12 }} 
-      volumes:
-      - name: {{ .Release.Name }}-{{ .Chart.Name }}-conf
-        configMap:
-          name: {{ .Release.Name }}-{{ .Chart.Name }}-conf
-          items:
-            - key: postgres_uri
-              path: postgres_uri
-            - key: postgres_user
-              path: postgres_user
-            - key: postgres_password
-              path: postgres_password
-            - key: report_path
-              path: report_path
-            - key: log_path
-              path: log_path
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: {{ .Values.livenessProbe.port }}
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.livenessProbe.failureThreshold }}
 ---
 apiVersion: autoscaling.k8s.io/v1
 kind: VerticalPodAutoscaler
@@ -92,6 +90,13 @@ spec:
     kind: Deployment
     name: {{ .Release.Name }}-{{ .Chart.Name }}
   updatePolicy:
-{{ toYaml .Values.vpa.updatePolicy | indent 4 }} 
+    updateMode: {{ .Values.vpa.updateMode }}
   resourcePolicy:
-{{ toYaml .Values.vpa.resourcePolicy | indent 4 }} 
+    containerPolicies:
+      - containerName: '*'
+        minAllowed:
+          cpu: {{ .Values.vpa.minAllowed.cpu }}
+          memory: {{ .Values.vpa.minAllowed.memory }}
+        maxAllowed:
+          cpu: {{ .Values.vpa.maxAllowed.cpu }}
+          memory: {{ .Values.vpa.maxAllowed.memory }}

@@ -25,12 +25,14 @@ spec:
       labels:
         app: {{ .Release.Name }}-{{ .Chart.Name }}
     spec:
+      imagePullSecrets:
+        {{- toYaml .Values.global.imagePullSecrets | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           image: {{ .Values.image }}
           imagePullPolicy: {{ .Values.global.imagePullPolicy }}
           resources:
-{{ toYaml .Values.resources | indent 12 }} 
+{{ toYaml .Values.resources | indent 12 }}
           ports:
             - name: {{ .Chart.Name }}
               containerPort: {{ .Values.containerPort }}
@@ -45,4 +47,4 @@ spec:
             name: {{ .Release.Name }}-{{ .Chart.Name }}-conf
             items:
               - key: {{ .Values.nginxConf }}
-                path: {{ .Values.nginxConf }} 
+                path: {{ .Values.nginxConf }}

@@ -1,5 +1,16 @@
+# ============================================================
+# Верхнеуровневый values.yaml чарта sausage-store.
+# Здесь задаются все переменные, которые используются в шаблонах
+# сабчартов frontend, backend, backend-report и infra.
+# ============================================================
+
 global:
   imagePullPolicy: Always
+  # NEW: секрет для авторизации в Docker Hub, чтобы K8s мог
+  # скачивать приватные образы. Создаётся вручную:
+  # kubectl create secret docker-registry regcred ...
+  imagePullSecrets:
+    - name: regcred
   ###vault:
   ###  host: ip
   ###  name: vault
@@ -8,18 +19,30 @@ global:
 
 frontend:
 ### В чарте frontend отсутствуют некоторые важные файлы. Поймите какие и опишите их.
+# NEW: не хватало Chart.yaml и templates/service.yaml — добавим в следующих шагах.
+
   replicas: 1
   revisionHistoryLimit: 15
   strategy:
     type: Recreate
+
+  # NEW: образ фронтенда. Замените YOUR_DOCKERHUB на свой логин.
+  image: ilyakubashin/sausage-frontend:latest
+  # NEW: порт, который слушает nginx внутри контейнера.
+  containerPort: 80
+
   service:
     port: 80
+
   ingress:
-    host: YOUR_STUDENT_HOSTNAME.students-projects.ru # Корректный домен будет указан в задании
+    # NEW: подставьте свой хостнейм из задания:
+    # front-<yourname>.2sem.students-projects.ru
+    host: front-kubashinia.2sem.students-projects.ru
     path: /
     pathType: Prefix
-  containerPort: 80
-  image: YOUR_DOCKERHUB/sausage-frontend:latest
+    # NEW: tls-секрет, который уже существует в вашем namespace.
+    tlsSecretName: 2sem-students-projects-wildcard-secret
+
   resources:
     requests:
       memory: "128Mi"
@@ -27,27 +50,37 @@ frontend:
     limits:
       memory: "128Mi"
       cpu: "1"
+
+  # NEW: имя файла конфига nginx, который пробрасывается через configmap.
   nginxConf: nginx.conf
+
 
 backend:
   annotations:
     path: /actuator/prometheus
     port: "8080"
     scrape: "true"
-  env:
-    postgresUri: jdbc:postgresql://postgresql:5432/sausage-store
-    postgresUser: store
-    postgresPassword: storepassword
-    reportPath: /logs/reports
-    logPath: /logs
+
+  # NEW: количество реплик и история ревизий
+  replicas: 1
+  revisionHistoryLimit: 15
+
+  # NEW: стратегия деплоя RollingUpdate (по заданию).
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+
+  # NEW: образ бэкенда с Docker Hub. Замените логин.
+  image: ilyakubashin/sausage-backend:latest
+  imagePullPolicy: Always
+  # NEW: порт приложения Spring Boot.
+  containerPort: 8080
+
   service:
     port: 8080
-  revisionHistoryLimit: 15
-  replicas: 1
-  strategy:
-  ### Опишите стратегию RollingUpdate для бэкенда
-  image: YOUR_DOCKERHUB/sausage-backend:latest
-  imagePullPolicy: Always
+
   resources:
     requests:
       memory: "256Mi"
@@ -55,24 +88,138 @@ backend:
     limits:
       memory: "512Mi"
       cpu: "1"
-  containerPort: 8080
-  livenessProbe:
-  ### Опишите LivenessProbe для бэкенда
-  vpa:
-  ### Опишите VPA для бэкенда
 
+  env:
+    postgresUri: jdbc:postgresql://postgresql:5432/sausage-store
+    postgresUser: store
+    postgresPassword: storepassword
+    reportPath: /logs/reports
+    logPath: /logs
+
+  # NEW: LivenessProbe для бэкенда — Spring Boot Actuator.
+  livenessProbe:
+    enabled: true
+    path: /actuator/health
+    port: 8080
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # NEW: VPA в режиме рекомендаций (updateMode: "Off").
+  vpa:
+    enabled: true
+    updateMode: "Off"
+    minAllowed:
+      cpu: 25m
+      memory: 256Mi
+    maxAllowed:
+      cpu: 1
+      memory: 1Gi
+
+
+# ============================================================
+# NEW: backend-report — сервис отчётов на Go.
+# Стратегия Recreate (по заданию), порт через ConfigMap, БД через Secret,
+# HPA на CPU.
+# ============================================================
 backend-report:
 ### Опишите значения для backend-report
 ### Приложение должно использовать стратегию Recreate
-### Приложение использует переменную PORT - порт, на котором оно запустится и DB - Uri-подключение к mongodb. 
+### Приложение использует переменную PORT - порт, на котором оно запустится и DB - Uri-подключение к mongodb.
 ### DB положите в Secret, PORT в ConfigMap
 ### Опишите HPA для backend-report
 
+  replicas: 1
+  revisionHistoryLimit: 15
+
+  strategy:
+    type: Recreate
+
+  image: ilyakubashin/sausage-backend-report:latest
+  imagePullPolicy: Always
+  containerPort: 8080
+
+  service:
+    port: 8080
+
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "1"
+
+  # Переменная PORT — попадёт в ConfigMap.
+  env:
+    port: "8080"
+
+  # Переменная DB — попадёт в Secret.
+  secret:
+    db: mongodb://root:rootpassword@mongodb:27017/reports?authSource=admin
+
+  hpa:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 75
+
+
+# ============================================================
+# infra — PostgreSQL и MongoDB для приложения.
+# ============================================================
 infra:
   postgresql:
   ### Опишите необходимые переменные для развертывания PostgresQL в кластере Kubernetes
+    # NEW: образ и реплика
+    image: postgres:13.10
+    replicas: 1
+    containerPort: 5432
+
+    service:
+      port: 5432
+
+    env:
+      POSTGRES_USER: store
+      POSTGRES_PASSWORD: storepassword
+      POSTGRES_DB: sausage-store
+
+    # NEW: PVC для персистентности данных (обязательно по заданию).
+    persistence:
+      enabled: true
+      size: 1Gi
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "1"
+
   mongodb:
+    # NEW: образ Mongo, реплика и порт.
+    image: mongo:5
+    replicas: 1
+    containerPort: 27017
+
+    service:
+      port: 27017
+
     env:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: rootpassword
-    containerPort: 27017
+
+    # NEW: PVC для Mongo.
+    persistence:
+      enabled: true
+      size: 1Gi
+
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "512Mi"
+        cpu: "1"
