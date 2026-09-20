@@ -156,7 +156,7 @@ backend-report:
 
   # Переменная DB — попадёт в Secret.
   secret:
-    db: mongodb://root:rootpassword@mongodb:27017/reports?authSource=admin
+    db: mongodb://reports:reportspassword@mongodb:27017/sausage-store?authSource=admin
 
   hpa:
     enabled: true
