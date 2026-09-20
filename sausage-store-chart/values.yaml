@@ -49,7 +49,7 @@ frontend:
       cpu: "100m"
     limits:
       memory: "128Mi"
-      cpu: "1"
+      cpu: "200m"
 
   # NEW: имя файла конфига nginx, который пробрасывается через configmap.
   nginxConf: nginx.conf
@@ -87,7 +87,7 @@ backend:
       cpu: "100m"
     limits:
       memory: "512Mi"
-      cpu: "1"
+      cpu: "700m"
 
   env:
     postgresUri: jdbc:postgresql://postgresql:5432/sausage-store
@@ -149,7 +149,7 @@ backend-report:
       cpu: "100m"
     limits:
       memory: "512Mi"
-      cpu: "1"
+      cpu: "500m"
 
   # Переменная PORT — попадёт в ConfigMap.
   env:
@@ -196,7 +196,7 @@ infra:
         cpu: "100m"
       limits:
         memory: "512Mi"
-        cpu: "1"
+        cpu: "500m"
 
   mongodb:
     # NEW: образ Mongo, реплика и порт.
@@ -222,4 +222,4 @@ infra:
         cpu: "100m"
       limits:
         memory: "512Mi"
-        cpu: "1"
+        cpu: "500m"

@@ -90,7 +90,7 @@ spec:
     kind: Deployment
     name: {{ .Release.Name }}-{{ .Chart.Name }}
   updatePolicy:
-    updateMode: {{ .Values.vpa.updateMode }}
+    updateMode: {{ .Values.vpa.updateMode | quote }}
   resourcePolicy:
     containerPolicies:
       - containerName: '*'
