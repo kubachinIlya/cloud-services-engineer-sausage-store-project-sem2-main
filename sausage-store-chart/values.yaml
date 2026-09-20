@@ -155,8 +155,10 @@ backend-report:
     port: "8080"
 
   # Переменная DB — попадёт в Secret.
+  # secret:
+  #   db: mongodb://reports:reportspassword@mongodb:27017/sausage-store?authSource=admin
   secret:
-    db: mongodb://reports:reportspassword@mongodb:27017/sausage-store?authSource=admin
+    db: mongodb://reports:reportspassword@mongodb:27017/sausage-store?authSource=sausage-store
 
   hpa:
     enabled: true
