@@ -18,17 +18,17 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /app/main .
 
 
 ######## Start a new stage from scratch #######
-FROM alpine:latest  
+FROM alpine:3.19
 
 WORKDIR /app
 
 RUN adduser -D -u 1000 appuser
 # Copy the Pre-built binary file from the previous stage
-COPY --from=builderer /app/main .
+COPY --from=builder /app/main .
 RUN chown appuser:appuser /app/main
 USER appuser
 # Expose port 8080 to the outside world
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["./main"] 
+CMD ["./main"]
